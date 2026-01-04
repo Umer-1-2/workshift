@@ -1,0 +1,15 @@
+Pre-requisites :
+    Python
+    NodeJS(npm)
+    Chocolatey
+
+step 1 :
+    cd workshift_full/backend
+    pip install -r requirements.txt
+    uvicorn server:app --reload
+    http://127.0.0.1:8000/health
+
+Step 2 :
+    cd workshift_full/frontend
+    npm install   # or yarn
+    npm start
