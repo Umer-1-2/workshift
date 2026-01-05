@@ -13,3 +13,6 @@ class LoginRequest(BaseModel):
 class LoginRequest(BaseModel):
     email: EmailStr
     password: str
+
+class PunchRequest(BaseModel):
+    user_id: int

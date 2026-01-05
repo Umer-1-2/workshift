@@ -3,9 +3,10 @@ from fastapi import FastAPI, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from database import Base, engine, SessionLocal
-from models import User
+from models import User, Attendance
 from auth import hash_password, verify_password, create_access_token,authenticate_user
-from schemas import RegisterRequest, LoginRequest  # 👈 MUST BE HERE
+from schemas import RegisterRequest, LoginRequest, PunchRequest
+from datetime import datetime, date
 
 app = FastAPI()
 app.add_middleware(
@@ -54,3 +55,58 @@ def login(payload: LoginRequest, db: Session = Depends(get_db)):
     "token_type": "bearer",
     "role": user.role
     }
+
+@app.post("/attendance/punch-in")
+def punch_in(
+    payload: PunchRequest,
+    db: Session = Depends(get_db)
+):
+    user_id = payload.user_id
+
+    today = date.today()
+
+    existing = (
+        db.query(Attendance)
+        .filter(
+            Attendance.user_id == user_id,
+            Attendance.punch_in >= datetime.combine(today, datetime.min.time())
+        )
+        .first()
+    )
+
+    if existing:
+        raise HTTPException(status_code=400, detail="Already punched in today")
+
+    attendance = Attendance(
+        user_id=user_id,
+        punch_in=datetime.utcnow()
+    )
+    db.add(attendance)
+    db.commit()
+
+    return {"message": "Punch in successful"}
+
+@app.post("/attendance/punch-out")
+def punch_out(
+    payload: PunchRequest,
+    db: Session = Depends(get_db)
+):
+    user_id = payload.user_id
+
+    attendance = (
+        db.query(Attendance)
+        .filter(
+            Attendance.user_id == user_id,
+            Attendance.punch_out.is_(None)
+        )
+        .order_by(Attendance.punch_in.desc())
+        .first()
+    )
+
+    if not attendance:
+        raise HTTPException(status_code=400, detail="No active punch-in found")
+
+    attendance.punch_out = datetime.utcnow()
+    db.commit()
+
+    return {"message": "Punch out successful"}
